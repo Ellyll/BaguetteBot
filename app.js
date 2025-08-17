@@ -8,6 +8,7 @@ import {
   verifyKeyMiddleware,
 } from 'discord-interactions';
 import { getRandomEmoji, DiscordRequest } from './utils.js';
+const { createHmac, timingSafeEqual } = await import('node:crypto');
 
 // Create an express app
 const app = express();
@@ -15,6 +16,25 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 // To keep track of our active games
 const activeGames = {};
+
+// Twitch: Notification request headers
+const TWITCH_MESSAGE_ID = 'Twitch-Eventsub-Message-Id'.toLowerCase();
+const TWITCH_MESSAGE_TIMESTAMP = 'Twitch-Eventsub-Message-Timestamp'.toLowerCase();
+const TWITCH_MESSAGE_SIGNATURE = 'Twitch-Eventsub-Message-Signature'.toLowerCase();
+const MESSAGE_TYPE = 'Twitch-Eventsub-Message-Type'.toLowerCase();
+
+// Twitch: Notification message types
+const MESSAGE_TYPE_VERIFICATION = 'webhook_callback_verification';
+const MESSAGE_TYPE_NOTIFICATION = 'notification';
+const MESSAGE_TYPE_REVOCATION = 'revocation';
+
+// Twitch: Prepend this string to the HMAC that's created from the message
+const HMAC_PREFIX = 'sha256=';
+
+app.use(express.raw({ // Need raw message body for signature verification
+    type: 'application/json'
+}));
+
 
 /**
  * Interactions endpoint URL where Discord will send HTTP requests
@@ -81,6 +101,46 @@ app.get('/test-send-message', async (_req, res) => {
     res.json({ ok: true });
 });
 
+app.post('/eventsub', (req, res) => {
+    let secret = getSecret();
+    let message = getHmacMessage(req);
+    let hmac = HMAC_PREFIX + getHmac(secret, message);  // Signature to compare
+
+    if (true === verifyMessage(hmac, req.headers[TWITCH_MESSAGE_SIGNATURE])) {
+        console.log("signatures match");
+
+        // Get JSON object from body, so you can process the message.
+        let notification = JSON.parse(req.body);
+        
+        if (MESSAGE_TYPE_NOTIFICATION === req.headers[MESSAGE_TYPE]) {
+            // TODO: Do something with the event's data.
+
+            console.log(`Event type: ${notification.subscription.type}`);
+            console.log(JSON.stringify(notification.event, null, 4));
+            
+            res.sendStatus(204);
+        }
+        else if (MESSAGE_TYPE_VERIFICATION === req.headers[MESSAGE_TYPE]) {
+            res.set('Content-Type', 'text/plain').status(200).send(notification.challenge);
+        }
+        else if (MESSAGE_TYPE_REVOCATION === req.headers[MESSAGE_TYPE]) {
+            res.sendStatus(204);
+
+            console.log(`${notification.subscription.type} notifications revoked!`);
+            console.log(`reason: ${notification.subscription.status}`);
+            console.log(`condition: ${JSON.stringify(notification.subscription.condition, null, 4)}`);
+        }
+        else {
+            res.sendStatus(204);
+            console.log(`Unknown message type: ${req.headers[MESSAGE_TYPE]}`);
+        }
+    }
+    else {
+        console.log('403');    // Signatures didn't match.
+        res.sendStatus(403);
+    }
+})
+
 app.get('/health', (_req, res) => {
     res.json({ ok: true, uptime: process.uptime() });
 });
@@ -88,3 +148,28 @@ app.get('/health', (_req, res) => {
 app.listen(PORT, () => {
   console.log('Listening on port', PORT);
 });
+
+// Twitch: get secret
+function getSecret() {
+    // This is the secret you pass when you subscribed to the event.
+    return process.env.TWITCH_SECRET;
+}
+
+// Twitch: Build the message used to get the HMAC.
+function getHmacMessage(request) {
+    return (request.headers[TWITCH_MESSAGE_ID] + 
+        request.headers[TWITCH_MESSAGE_TIMESTAMP] + 
+        request.body);
+}
+
+// Twitch: Get the HMAC.
+function getHmac(secret, message) {
+    return createHmac('sha256', secret)
+    .update(message)
+    .digest('hex');
+}
+
+// Twitch: Verify whether our hash matches the hash that Twitch passed in the header.
+function verifyMessage(hmac, verifySignature) {
+    return timingSafeEqual(Buffer.from(hmac), Buffer.from(verifySignature));
+}
