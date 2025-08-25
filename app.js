@@ -8,7 +8,16 @@ import {
   verifyKeyMiddleware,
 } from 'discord-interactions';
 import { getRandomEmoji, DiscordRequest } from './utils.js';
+import {
+  GetAccessToken,
+  GetEventSubscriptions,
+  GetUsersFromLogins,
+  CreateEventSubscription,
+  DeleteEventSubscription,
+  TwitchRequest
+} from './twitch-utils.js';
 const { createHmac, timingSafeEqual } = await import('node:crypto');
+const { readFileSync } = await import('fs');
 
 // Create an express app
 const app = express();
@@ -28,8 +37,13 @@ const MESSAGE_TYPE_VERIFICATION = 'webhook_callback_verification';
 const MESSAGE_TYPE_NOTIFICATION = 'notification';
 const MESSAGE_TYPE_REVOCATION = 'revocation';
 
+// Twitch: Subscription event types
+const TWITCH_EVENT_TYPE_STREAM_ONLINE = 'stream.online';
+
 // Twitch: Prepend this string to the HMAC that's created from the message
 const HMAC_PREFIX = 'sha256=';
+
+let twitchAccessToken = null;
 
 app.use(express.raw({ // Need raw message body for signature verification
     type: 'application/json'
@@ -101,7 +115,8 @@ app.get('/test-send-message', async (_req, res) => {
     res.json({ ok: true });
 });
 
-app.post('/eventsub', (req, res) => {
+app.post('/twitch-callback', async (req, res) => {
+    console.log('Callback received');
     let secret = getSecret();
     let message = getHmacMessage(req);
     let hmac = HMAC_PREFIX + getHmac(secret, message);  // Signature to compare
@@ -113,10 +128,24 @@ app.post('/eventsub', (req, res) => {
         let notification = JSON.parse(req.body);
         
         if (MESSAGE_TYPE_NOTIFICATION === req.headers[MESSAGE_TYPE]) {
-            // TODO: Do something with the event's data.
 
             console.log(`Event type: ${notification.subscription.type}`);
             console.log(JSON.stringify(notification.event, null, 4));
+
+            if (TWITCH_EVENT_TYPE_STREAM_ONLINE === notification.subscription.type) {
+              // Post message to Discord
+              // Send a message to the discord channel saying hello world
+              let user_name = notification.event.broadcaster_user_name;
+              let user_login = notification.event.broadcaster_user_login;
+              let url = `https://twitch.tv/${user_login}`;
+              let message = `The wonderful ${user_name} has gone live, let's go see what they're up to! ${url}`;
+              let response = await DiscordRequest(`channels/${process.env.CHANNEL_ID}/messages`, {
+                  method: 'POST',
+                  body: {
+                      content: message
+                  }
+                });
+            }
             
             res.sendStatus(204);
         }
@@ -145,14 +174,42 @@ app.get('/health', (_req, res) => {
     res.json({ ok: true, uptime: process.uptime() });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log('Listening on port', PORT);
+
+  twitchAccessToken = await GetAccessToken();
+  let subscriptionsResponse = await GetEventSubscriptions(twitchAccessToken);
+  let subscriptions = subscriptionsResponse.data.filter(sub => sub.type === 'stream.online');
+  console.log('subscriptionsResponse', subscriptionsResponse);
+
+  const watchedUsers = JSON.parse(readFileSync('watchedUsers.json'));
+  const userLogins = watchedUsers.map(u => u.user_login);
+  const users = (await GetUsersFromLogins(twitchAccessToken, userLogins)).data;
+  const userIds = users.map(user => user.id);
+  //console.log('users', users);
+ 
+  // go through subs - delete where user id isn't in list
+  const subsToDelete =
+    subscriptions.filter(sub => sub.status !== 'enabled' || !userIds.some(uId => uId === sub.condition.broadcaster_user_id));
+  console.log('subsToDelete', subsToDelete);
+  subsToDelete.forEach(async sub => {
+    await DeleteEventSubscription(twitchAccessToken, sub.id);
+  });
+
+  // go through users - create sub where sub doesn't exist
+  const userIdsForSubsToCreate =
+    userIds.filter(uId => !subscriptions.some(sub => sub.status === 'enabled' && sub.condition.broadcaster_user_id === uId));
+  console.log('userIdsForSubsToCreate', userIdsForSubsToCreate);
+  userIdsForSubsToCreate.forEach(async uId => {
+    await CreateEventSubscription(twitchAccessToken, 'stream.online', { broadcaster_user_id: uId } );
+    console.log(`Created sub for user_id: ${uId}`);
+  });
 });
 
 // Twitch: get secret
 function getSecret() {
     // This is the secret you pass when you subscribed to the event.
-    return process.env.TWITCH_SECRET;
+    return process.env.TWITCH_CALLBACK_SECRET;
 }
 
 // Twitch: Build the message used to get the HMAC.
