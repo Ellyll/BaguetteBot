@@ -5,4 +5,4 @@
 - Custom discord channel (rather than using default)
 - Add logging
 - Need a way of adding users - CLI or UI?
-
+- Handle ratelimits
