@@ -3,7 +3,7 @@ services:
     build: .
     volumes:
       - ./.env:/app/.env
-      - ./watchedUsers.json:/app/watchedUsers.json
+      - ./data:/app/data
     ports:
       - "3000:3000"
 
