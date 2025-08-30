@@ -1,0 +1,9 @@
+services:
+  baguette_bot:
+    build: .
+    volumes:
+      - ./.env:/app/.env
+      - ./watchedUsers.json:/app/watchedUsers.json
+    ports:
+      - "3000:3000"
+
