@@ -18,6 +18,7 @@ import {
 } from './twitch-utils.js';
 const { createHmac, timingSafeEqual } = await import('node:crypto');
 const { readFileSync } = await import('fs');
+import { createUser, getAllUsers, updateUser, deleteUser, initialiseDatabase } from './user-storage.js';
 
 // Create an express app
 const app = express();
@@ -176,17 +177,14 @@ app.get('/health', (_req, res) => {
 
 app.listen(PORT, async () => {
   console.log('Listening on port', PORT);
+  initialiseDatabase();
 
   twitchAccessToken = await GetAccessToken();
   let subscriptionsResponse = await GetEventSubscriptions(twitchAccessToken);
   let subscriptions = subscriptionsResponse.data.filter(sub => sub.type === 'stream.online');
   console.log('subscriptionsResponse', subscriptionsResponse);
 
-  const watchedUsers = JSON.parse(readFileSync('watchedUsers.json'));
-  const userLogins = watchedUsers.map(u => u.user_login);
-  const users = (await GetUsersFromLogins(twitchAccessToken, userLogins)).data;
-  const userIds = users.map(user => user.id);
-  //console.log('users', users);
+  let userIds = getAllUsers().map(user => user.twitch_id);
  
   // go through subs - delete where user id isn't in list
   const subsToDelete =
