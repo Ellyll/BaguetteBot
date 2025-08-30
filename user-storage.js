@@ -49,7 +49,7 @@ export function getAllUsers() {
 export function updateUser(uid, twitchLogin, twitchName, twitchId, streamOnlineMessage, discordChannelId, active) {
   const db = new DatabaseSync(dbFilePath);
   const stmt = db.prepare(`UPDATE Users SET twitch_login = ?, twitch_name = ?, twitch_id = ?, stream_online_message = ?, discord_channel_id = ?, active = ? WHERE uid = ?`);
-  stmt.run(twitchLogin, twitchName, twitchId, streamOnlineMessage, discordChannelId, active, uid);
+  stmt.run(twitchLogin, twitchName, twitchId, streamOnlineMessage, discordChannelId, active ? 1 : 0, uid);
   console.log("User updated successfully.");
   db.close();
 }

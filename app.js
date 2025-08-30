@@ -11,6 +11,7 @@ import { getRandomEmoji, DiscordRequest } from './utils.js';
 import {
   GetAccessToken,
   GetEventSubscriptions,
+  GetUsersFromIds,
   GetUsersFromLogins,
   CreateEventSubscription,
   DeleteEventSubscription,
@@ -134,6 +135,10 @@ app.post('/twitch-callback', async (req, res) => {
             console.log(JSON.stringify(notification.event, null, 4));
 
             if (TWITCH_EVENT_TYPE_STREAM_ONLINE === notification.subscription.type) {
+              // Update users from twitch (in case login/display name has changed)
+              twitchAccessToken = await GetAccessToken();
+              await UpdateUsersFromTwitch(twitchAccessToken);
+
               // Post message to Discord
               // Send a message to the discord channel saying hello world
               let user_name = notification.event.broadcaster_user_name;
@@ -180,6 +185,9 @@ app.listen(PORT, async () => {
   initialiseDatabase();
 
   twitchAccessToken = await GetAccessToken();
+
+  await UpdateUsersFromTwitch(twitchAccessToken);
+
   let subscriptionsResponse = await GetEventSubscriptions(twitchAccessToken);
   let subscriptions = subscriptionsResponse.data.filter(sub => sub.type === 'stream.online');
   console.log('subscriptionsResponse', subscriptionsResponse);
@@ -227,4 +235,49 @@ function getHmac(secret, message) {
 // Twitch: Verify whether our hash matches the hash that Twitch passed in the header.
 function verifyMessage(hmac, verifySignature) {
     return timingSafeEqual(Buffer.from(hmac), Buffer.from(verifySignature));
+}
+
+async function UpdateUsersFromTwitch(twitchAccessToken) {
+
+  try {
+    // Users from database
+    const users = getAllUsers();
+    console.log('users', users);
+    const userIds = users.map(user => user.twitch_id);
+    console.log('userIds', userIds);
+
+    // Users from Twitch
+    const twitchUsers = (await GetUsersFromIds(twitchAccessToken, userIds)).data;
+    console.log('twitchUsers', twitchUsers);
+
+    // Get an array of db users to update
+    const usersToUpdate = []
+    users.forEach(dbUser => {
+      const twitchUser = twitchUsers.find(tUser => tUser.id === dbUser.twitch_id);
+      if (twitchUser === undefined) {
+        console.log(`User not found in Twitch: uid: ${dbUser.uid}, twitch_id: ${dbUser.twitch_id}, twitch_login: ${dbUser.twitch_login}`);
+        // set user active to false
+        dbUser.active = false;
+        usersToUpdate.push(dbUser);
+      } else if (dbUser.twitch_login !== twitchUser.login ||
+            dbUser.twitch_name !== twitchUser.display_name ||
+            dbUser.active === 0) { // user was inactive (vanished from Twitch) but came back
+        //console.log('dbUser', dbUser);
+        console.log(`User details different from Twitch: uid: ${dbUser.uid}, twitch_id: ${dbUser.twitch_id}, twitch_login: ${dbUser.twitch_login}, twitch_name: ${dbUser.twitch_name}, active: ${dbUser.active}`);
+        console.log(`User details different from Twitch: login: ${twitchUser.login}, display_name: ${twitchUser.display_name}`);
+        dbUser.twitch_login = twitchUser.login;
+        dbUser.twitch_name = twitchUser.display_name;
+        dbUser.active = true;
+        usersToUpdate.push(dbUser);
+    }
+    });
+
+    usersToUpdate.forEach(user => {
+      console.log(`Updating user uid: ${user.uid}, twitch_id: ${user.twitch_id}, twitch_login: ${user.twitch_login}`);
+      updateUser(user.uid, user.twitch_login, user.twitch_name, user.twitch_id, user.stream_online_message, user.discord_channel_id, user.active);
+    });
+  }
+  catch (error) {
+    console.error('Error updating users from Twitch:', error);
+  }
 }

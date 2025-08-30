@@ -89,6 +89,26 @@ export async function GetUsersFromLogins(accessToken, userLogins) {
   }
 }
 
+export async function GetUsersFromIds(accessToken, userIds) {
+  const params = new URLSearchParams();
+  userIds.forEach(id => params.append('id', id));
+  const endpoint = `users?${params}`;
+
+  try {
+    let response = await TwitchRequest(endpoint, accessToken, { method: 'GET' });
+    if (response.ok) {
+      let users = await response.json();
+      return users;
+    } else {
+      console.error('Unable to get users from ids', response);
+      return null;
+    }
+  } catch (err) {
+    console.error(err);
+    return null;
+  }
+}
+
 export async function CreateEventSubscription(accessToken, eventType, condition) {
   const endpoint = `eventsub/subscriptions`;
 
