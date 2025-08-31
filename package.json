@@ -1,20 +1,20 @@
 {
-  "name": "discord-getting-started",
+  "name": "BaguetteBot",
   "private": true,
   "version": "1.0.0",
   "description": "Discord example app",
-  "main": "app.js",
+  "main": "src/app.js",
   "type": "module",
   "engines": {
-    "node": ">=18.x"
+    "node": ">=24.x"
   },
   "scripts": {
-    "start": "node app.js",
-    "register": "node commands.js",
-    "dev": "nodemon app.js",
-    "uninstall-commands": "node uninstall-commands.js"
+    "start": "node src/app.js",
+    "register": "node src/commands.js",
+    "dev": "nodemon src/app.js",
+    "uninstall-commands": "node src/uninstall-commands.js"
   },
-  "author": "Shay DeWael",
+  "author": "Ellyll",
   "license": "MIT",
   "dependencies": {
     "discord-interactions": "^4.0.0",
