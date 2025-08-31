@@ -19,7 +19,7 @@ import {
 } from './twitch-utils.js';
 const { createHmac, timingSafeEqual } = await import('node:crypto');
 const { readFileSync } = await import('fs');
-import { createUser, getAllUsers, updateUser, deleteUser, initialiseDatabase } from './user-storage.js';
+import { createUser, getAllUsers, getUserByTwitchId, updateUser, deleteUser, initialiseDatabase } from './user-storage.js';
 import logger from './logger.js';
 
 // Create an express app
@@ -141,7 +141,7 @@ app.post('/twitch-callback', async (req, res) => {
               await UpdateUsersFromTwitch(twitchAccessToken);
 
               // Get user from database
-              const user = GetUserByTwitchId(notification.even.broadcaster_user_id);
+              const user = getUserByTwitchId(notification.even.broadcaster_user_id);
 
               // Post message to Discord
               // Send a message to the discord channel saying hello world
