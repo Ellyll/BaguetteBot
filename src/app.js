@@ -145,9 +145,9 @@ app.post('/twitch-callback', async (req, res) => {
 
               // Post message to Discord
               // Send a message to the discord channel saying hello world
-              let user_name = notification.event.broadcaster_user_name;
-              let user_login = notification.event.broadcaster_user_login;
-              let url = `https://twitch.tv/${user_login}`;
+              const user_name = notification.event.broadcaster_user_name;
+              const user_login = notification.event.broadcaster_user_login;
+              const url = `https://twitch.tv/${user_login}`;
               let message = `The wonderful ${user_name} has gone live, let's go see what they're up to! ${url}`;
               // If we have a custom stream online message stored, use that instead of the default
               if (user.stream_online_message) {
