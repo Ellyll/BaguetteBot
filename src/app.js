@@ -20,6 +20,7 @@ import {
 const { createHmac, timingSafeEqual } = await import('node:crypto');
 const { readFileSync } = await import('fs');
 import { createUser, getAllUsers, updateUser, deleteUser, initialiseDatabase } from './user-storage.js';
+import logger from './logger.js';
 
 // Create an express app
 const app = express();
@@ -92,11 +93,11 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
       });
     }
 
-    console.error(`unknown command: ${name}`);
+    logger.error(`unknown command: ${name}`);
     return res.status(400).json({ error: 'unknown command' });
   }
 
-  console.error('unknown interaction type', type);
+  logger.error('unknown interaction type', type);
   return res.status(400).json({ error: 'unknown interaction type' });
 });
 
@@ -110,7 +111,7 @@ app.get('/test-send-message', async (_req, res) => {
     });
 
     if (!response.ok) {
-        console.error('Unable to send message', response);
+        logger.error('Unable to send message', response);
         return res.status(500).json({ error: 'Unable to send message' });
     }
 
@@ -118,21 +119,21 @@ app.get('/test-send-message', async (_req, res) => {
 });
 
 app.post('/twitch-callback', async (req, res) => {
-    console.log('Callback received');
+    logger.info('Callback received');
     let secret = getSecret();
     let message = getHmacMessage(req);
     let hmac = HMAC_PREFIX + getHmac(secret, message);  // Signature to compare
 
     if (true === verifyMessage(hmac, req.headers[TWITCH_MESSAGE_SIGNATURE])) {
-        console.log("signatures match");
+        logger.debug("signatures match");
 
         // Get JSON object from body, so you can process the message.
         let notification = JSON.parse(req.body);
         
         if (MESSAGE_TYPE_NOTIFICATION === req.headers[MESSAGE_TYPE]) {
 
-            console.log(`Event type: ${notification.subscription.type}`);
-            console.log(JSON.stringify(notification.event, null, 4));
+            logger.debug(`Event type: ${notification.subscription.type}`);
+            logger.debug(JSON.stringify(notification.event, null, 4));
 
             if (TWITCH_EVENT_TYPE_STREAM_ONLINE === notification.subscription.type) {
               // Update users from twitch (in case login/display name has changed)
@@ -161,17 +162,17 @@ app.post('/twitch-callback', async (req, res) => {
         else if (MESSAGE_TYPE_REVOCATION === req.headers[MESSAGE_TYPE]) {
             res.sendStatus(204);
 
-            console.log(`${notification.subscription.type} notifications revoked!`);
-            console.log(`reason: ${notification.subscription.status}`);
-            console.log(`condition: ${JSON.stringify(notification.subscription.condition, null, 4)}`);
+            logger.debug(`${notification.subscription.type} notifications revoked!`);
+            logger.debug(`reason: ${notification.subscription.status}`);
+            logger.debug(`condition: ${JSON.stringify(notification.subscription.condition, null, 4)}`);
         }
         else {
             res.sendStatus(204);
-            console.log(`Unknown message type: ${req.headers[MESSAGE_TYPE]}`);
+            logger.info(`Unknown message type: ${req.headers[MESSAGE_TYPE]}`);
         }
     }
     else {
-        console.log('403');    // Signatures didn't match.
+        logger.info('403');    // Signatures didn't match.
         res.sendStatus(403);
     }
 })
@@ -181,7 +182,7 @@ app.get('/health', (_req, res) => {
 });
 
 app.listen(PORT, async () => {
-  console.log('Listening on port', PORT);
+  logger.info('Listening on port', PORT);
   initialiseDatabase();
 
   twitchAccessToken = await GetAccessToken();
@@ -190,14 +191,14 @@ app.listen(PORT, async () => {
 
   let subscriptionsResponse = await GetEventSubscriptions(twitchAccessToken);
   let subscriptions = subscriptionsResponse.data.filter(sub => sub.type === 'stream.online');
-  console.log('subscriptionsResponse', subscriptionsResponse);
+  logger.debug(`subscriptionsResponse: ${subscriptionsResponse}`);
 
   let userIds = getAllUsers().map(user => user.twitch_id);
  
   // go through subs - delete where user id isn't in list
   const subsToDelete =
     subscriptions.filter(sub => sub.status !== 'enabled' || !userIds.some(uId => uId === sub.condition.broadcaster_user_id));
-  console.log('subsToDelete', subsToDelete);
+  logger.debug(`subsToDelete: ${subsToDelete}`);
   subsToDelete.forEach(async sub => {
     await DeleteEventSubscription(twitchAccessToken, sub.id);
   });
@@ -205,10 +206,10 @@ app.listen(PORT, async () => {
   // go through users - create sub where sub doesn't exist
   const userIdsForSubsToCreate =
     userIds.filter(uId => !subscriptions.some(sub => sub.status === 'enabled' && sub.condition.broadcaster_user_id === uId));
-  console.log('userIdsForSubsToCreate', userIdsForSubsToCreate);
+  logger.debug(`userIdsForSubsToCreate: ${userIdsForSubsToCreate}`);
   userIdsForSubsToCreate.forEach(async uId => {
     await CreateEventSubscription(twitchAccessToken, 'stream.online', { broadcaster_user_id: uId } );
-    console.log(`Created sub for user_id: ${uId}`);
+    logger.info(`Created sub for user_id: ${uId}`);
   });
 });
 
@@ -242,29 +243,25 @@ async function UpdateUsersFromTwitch(twitchAccessToken) {
   try {
     // Users from database
     const users = getAllUsers();
-    console.log('users', users);
     const userIds = users.map(user => user.twitch_id);
-    console.log('userIds', userIds);
 
     // Users from Twitch
     const twitchUsers = (await GetUsersFromIds(twitchAccessToken, userIds)).data;
-    console.log('twitchUsers', twitchUsers);
 
     // Get an array of db users to update
     const usersToUpdate = []
     users.forEach(dbUser => {
       const twitchUser = twitchUsers.find(tUser => tUser.id === dbUser.twitch_id);
       if (twitchUser === undefined) {
-        console.log(`User not found in Twitch: uid: ${dbUser.uid}, twitch_id: ${dbUser.twitch_id}, twitch_login: ${dbUser.twitch_login}`);
+        logger.info(`User not found in Twitch: uid: ${dbUser.uid}, twitch_id: ${dbUser.twitch_id}, twitch_login: ${dbUser.twitch_login}`);
         // set user active to false
         dbUser.active = false;
         usersToUpdate.push(dbUser);
       } else if (dbUser.twitch_login !== twitchUser.login ||
             dbUser.twitch_name !== twitchUser.display_name ||
             dbUser.active === 0) { // user was inactive (vanished from Twitch) but came back
-        //console.log('dbUser', dbUser);
-        console.log(`User details different from Twitch: uid: ${dbUser.uid}, twitch_id: ${dbUser.twitch_id}, twitch_login: ${dbUser.twitch_login}, twitch_name: ${dbUser.twitch_name}, active: ${dbUser.active}`);
-        console.log(`User details different from Twitch: login: ${twitchUser.login}, display_name: ${twitchUser.display_name}`);
+        logger.info(`User details different from Twitch: uid: ${dbUser.uid}, twitch_id: ${dbUser.twitch_id}, twitch_login: ${dbUser.twitch_login}, twitch_name: ${dbUser.twitch_name}, active: ${dbUser.active}`);
+        logger.info(`User details different from Twitch: login: ${twitchUser.login}, display_name: ${twitchUser.display_name}`);
         dbUser.twitch_login = twitchUser.login;
         dbUser.twitch_name = twitchUser.display_name;
         dbUser.active = true;
@@ -273,11 +270,11 @@ async function UpdateUsersFromTwitch(twitchAccessToken) {
     });
 
     usersToUpdate.forEach(user => {
-      console.log(`Updating user uid: ${user.uid}, twitch_id: ${user.twitch_id}, twitch_login: ${user.twitch_login}`);
+      logger.info(`Updating user uid: ${user.uid}, twitch_id: ${user.twitch_id}, twitch_login: ${user.twitch_login}`);
       updateUser(user.uid, user.twitch_login, user.twitch_name, user.twitch_id, user.stream_online_message, user.discord_channel_id, user.active);
     });
   }
   catch (error) {
-    console.error('Error updating users from Twitch:', error);
+    logger.error('Error updating users from Twitch: %s', error);
   }
 }

@@ -1,5 +1,6 @@
 import { DatabaseSync } from 'node:sqlite';
 import { existsSync } from 'fs';
+import logger from './logger.js';
 
 const dbFilePath = './data/users.db';
 
@@ -21,9 +22,9 @@ export function initialiseDatabase() {
       discord_channel_id TEST,
       active BOOLEAN NOT NULL
     )`);
-    console.log("Database and Users table created successfully.");
+    logger.info('Database and Users table created successfully.');
   } else {
-    console.log("Database and Users table already exist.");
+    logger.info('Database and Users table already exist.');
   }
 
   db.close();
@@ -33,7 +34,7 @@ export function createUser(twitchLogin, twitchName, twitchId, streamOnlineMessag
   const db = new DatabaseSync(dbFilePath);
   const stmt = db.prepare(`INSERT INTO Users (twitch_login, twitch_name, twitch_id, stream_online_message, discord_channel_id, active) VALUES (?, ?, ?, ?, ?, ?)`);
   stmt.run(twitchLogin, twitchName, twitchId, streamOnlineMessage, discordChannelId , active ? 1 : 0);
-  console.log("User created successfully.");
+  logger.info(`User with twitch_login ${twitchLogin} created successfully.`);
   db.close();
 }
 
@@ -50,7 +51,7 @@ export function updateUser(uid, twitchLogin, twitchName, twitchId, streamOnlineM
   const db = new DatabaseSync(dbFilePath);
   const stmt = db.prepare(`UPDATE Users SET twitch_login = ?, twitch_name = ?, twitch_id = ?, stream_online_message = ?, discord_channel_id = ?, active = ? WHERE uid = ?`);
   stmt.run(twitchLogin, twitchName, twitchId, streamOnlineMessage, discordChannelId, active ? 1 : 0, uid);
-  console.log("User updated successfully.");
+  logger.info(`User with uid ${uid} updated successfully.`);
   db.close();
 }
 
@@ -59,7 +60,7 @@ export function deleteUser(uid) {
   const db = new DatabaseSync(dbFilePath);
   const stmt = db.prepare(`DELETE FROM Users WHERE uid = ?`);
   stmt.run(uid);
-  console.log("User deleted successfully.");
+  logger.info(`User with uid ${uid} deleted successfully.`);
   db.close();
 }
 

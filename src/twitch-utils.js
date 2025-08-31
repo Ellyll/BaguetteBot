@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import logger from './logger.js';
 
 export async function TwitchRequest(endpoint, accessToken, options) {
   // append endpoint to root API URL
@@ -18,7 +19,7 @@ export async function TwitchRequest(endpoint, accessToken, options) {
   // throw API errors
   if (!res.ok) {
     const data = await res.json();
-    console.error(res.status);
+    logger.error(res.status);
     throw new Error(JSON.stringify(data));
   }
   // return original response
@@ -47,7 +48,7 @@ export async function GetAccessToken() {
         const accessToken = data.access_token;
         return accessToken;
     } catch (error) {
-        console.error('Error fetching access token:', error.message);
+        logger.error('Error fetching access token: %s', error.message);
     }
 }
 
@@ -60,11 +61,11 @@ export async function GetEventSubscriptions(accessToken) {
       let subscriptions = await response.json();
       return subscriptions;
     } else {
-      console.error('Unable to get subscriptions', response);
+      logger.error('Unable to get subscriptions: %s', response);
       return null;
     }
   } catch (err) {
-    console.error(err);
+    logger.error(err);
     return null;
   }
 }
@@ -80,11 +81,11 @@ export async function GetUsersFromLogins(accessToken, userLogins) {
       let users = await response.json();
       return users;
     } else {
-      console.error('Unable to get users from logins', response);
+      logger.error('Unable to get users from logins: %s', response);
       return null;
     }
   } catch (err) {
-    console.error(err);
+    logger.error(err);
     return null;
   }
 }
@@ -100,11 +101,11 @@ export async function GetUsersFromIds(accessToken, userIds) {
       let users = await response.json();
       return users;
     } else {
-      console.error('Unable to get users from ids', response);
+      logger.error('Unable to get users from ids: %s', response);
       return null;
     }
   } catch (err) {
-    console.error(err);
+    logger.error(err);
     return null;
   }
 }
@@ -128,11 +129,11 @@ export async function CreateEventSubscription(accessToken, eventType, condition)
     if (response.ok) {
       return true;
     } else {
-      console.error('Unable to create subscription', response);
+      logger.error('Unable to create subscription: %s', response);
       return false;
     }
   } catch (err) {
-    console.error(err);
+    logger.error(err);
     return false;
   }
 }
@@ -145,11 +146,11 @@ export async function DeleteEventSubscription(accessToken, subscription_id) {
     if (response.ok) {
       return true;
     } else {
-      console.error('Unable to delete subscription', response);
+      logger.error('Unable to delete subscription: %s', response);
       return false;
     }
   } catch (err) {
-    console.error(err);
+    logger.error(err);
     return false;
   }
 }
