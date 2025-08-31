@@ -19,7 +19,7 @@ export function initialiseDatabase() {
       twitch_name TEXT NOT NULL,
       twitch_id TEXT NOT NULL,
       stream_online_message TEXT,
-      discord_channel_id TEST,
+      discord_channel_id TEXT,
       active BOOLEAN NOT NULL
     )`);
     logger.info('Database and Users table created successfully.');
