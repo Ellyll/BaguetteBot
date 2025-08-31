@@ -140,13 +140,23 @@ app.post('/twitch-callback', async (req, res) => {
               twitchAccessToken = await GetAccessToken();
               await UpdateUsersFromTwitch(twitchAccessToken);
 
+              // Get user from database
+              const user = GetUserByTwitchId(notification.even.broadcaster_user_id);
+
               // Post message to Discord
               // Send a message to the discord channel saying hello world
               let user_name = notification.event.broadcaster_user_name;
               let user_login = notification.event.broadcaster_user_login;
               let url = `https://twitch.tv/${user_login}`;
               let message = `The wonderful ${user_name} has gone live, let's go see what they're up to! ${url}`;
-              let response = await DiscordRequest(`channels/${process.env.CHANNEL_ID}/messages`, {
+              // If we have a custom stream online message stored, use that instead of the default
+              if (user.stream_online_message) {
+                message = user.stream_online_message.replaceAll('{user_name}', user_name).replaceAll('{user_login}', user_login).replaceAll('{url}', url);
+              }
+
+              const channelId = user.discord_channel_id ?? process.env.CHANNEL_ID;
+
+              let response = await DiscordRequest(`channels/${channeldId}/messages`, {
                   method: 'POST',
                   body: {
                       content: message
