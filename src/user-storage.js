@@ -54,6 +54,14 @@ export function getUserByTwitchId(twitchId) {
   return user; // undefined if not found
 }
 
+export function getUserByTwitchLogin(twitchLogin) {
+  const db = new DatabaseSync(dbFilePath);
+  const stmt = db.prepare(`SELECT * FROM Users WHERE twitch_login = ?`);
+  const user = stmt.get(twitchLogin);
+  db.close();
+  return user; // undefined if not found
+}
+
 // Update a user by uid
 export function updateUser(uid, twitchLogin, twitchName, twitchId, streamOnlineMessage, discordChannelId, active) {
   const db = new DatabaseSync(dbFilePath);
