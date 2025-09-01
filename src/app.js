@@ -141,7 +141,7 @@ app.post('/twitch-callback', async (req, res) => {
               await UpdateUsersFromTwitch(twitchAccessToken);
 
               // Get user from database
-              const user = getUserByTwitchId(notification.even.broadcaster_user_id);
+              const user = getUserByTwitchId(notification.event.broadcaster_user_id);
 
               // Post message to Discord
               // Send a message to the discord channel saying hello world
