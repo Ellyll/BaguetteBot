@@ -156,7 +156,7 @@ app.post('/twitch-callback', async (req, res) => {
 
               const channelId = user.discord_channel_id ?? process.env.CHANNEL_ID;
 
-              let response = await DiscordRequest(`channels/${channeldId}/messages`, {
+              let response = await DiscordRequest(`channels/${channelId}/messages`, {
                   method: 'POST',
                   body: {
                       content: message
