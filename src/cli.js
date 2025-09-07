@@ -192,25 +192,53 @@ program
   });
 
 
+program
+  .command('disable <login>')
+  .description('Disable a user')
+  .action((login) => {
+    const searchLogin = login.startsWith('@') ? login.substring(1) : login;
+
+    // Check user exists
+    const user = getUserByTwitchLogin(searchLogin);
+    if (user === undefined) {
+      console.error(`User ${searchLogin} does not exist`);
+      process.exit(1);
+    }
+
+    if (!user.active) {
+      console.warn(`User ${searchLogin} is already disabled`);
+      return;
+    }
+
+    updateUser(user.uid, user.twitch_login, user.twitch_name, user.twitch_id, user.stream_online_message, user.discord_channel_id, false);
+    console.log(`User ${searchLogin} has been disabled.`);
+  });
 
 
-  
+program
+  .command('enable <login>')
+  .description('Enable a user')
+  .action((login) => {
+    const searchLogin = login.startsWith('@') ? login.substring(1) : login;
+
+    // Check user exists
+    const user = getUserByTwitchLogin(searchLogin);
+    if (user === undefined) {
+      console.error(`User ${searchLogin} does not exist`);
+      process.exit(1);
+    }
+
+    if (user.active) {
+      console.warn(`User ${searchLogin} is already enabled`);
+      return;
+    }
+
+    updateUser(user.uid, user.twitch_login, user.twitch_name, user.twitch_id, user.stream_online_message, user.discord_channel_id, true);
+    console.log(`User ${searchLogin} has been enabled.`);
+  });
+
 
 /*
-program
-  .command('disable <id>')
-  .description('Disable a user')
-  .action((id) => {
-    console.log(`User ${id} disabled.`);
-  });
-
-program
-  .command('enable <id>')
-  .description('Enable a user')
-  .action((id) => {
-    console.log(`User ${id} enabled.`);
-  });
-
 program
   .command('delete <id>')
   .description('Delete a user')
@@ -219,12 +247,13 @@ program
   });
 
 program
-  .command('update')
+  .command('update-users')
   .description('Update users from Twitch')
   .action(() => {
     console.log(`Users updated from Twitch.`);
   });
 */
+
 
 function displayUser(twitchUser) {
   const table = new Table();
