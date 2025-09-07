@@ -74,6 +74,9 @@ program
     console.log(`User ${searchLogin} added.`);
     const user = getUserByTwitchLogin(twitchUser.login);
 
+    await CreateEventSubscription(twitchAccessToken, 'stream.online', { broadcaster_user_id: twitchUser.id } );
+    console.log(`Created sub for user_id: ${twitchUser.id}`);
+
     displayUser(user);
   });
 
