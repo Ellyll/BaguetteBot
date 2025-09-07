@@ -58,6 +58,44 @@ export async function UninstallGlobalCommands(appId) {
     }
 }
 
+
+// Get my (i.e. the bot's) guilds (aka Discord servers)
+export async function GetMyGuilds() {
+  const endpoint = `users/@me/guilds`;
+
+  try {
+    const response = await DiscordRequest(endpoint, { method: 'GET' });
+    if (response.ok) {
+      const guilds = await response.json();
+      return guilds;
+    } else {
+      logger.error('Unable to get list of guilds: %s', response);
+    }
+  } catch (err) {
+      logger.error(err);
+  }
+}
+
+
+// Get a Discord server's (guild's) channels
+export async function GetGuildChannels(guildId) {
+  const endpoint = `guilds/${guildId}/channels`;
+
+  try {
+    const response = await DiscordRequest(endpoint, { method: 'GET' });
+    if (response.ok) {
+      const channels = await response.json();
+      return channels;
+    } else {
+      logger.error('Unable to get list of channels for guildId %s: %s', guildId, response);
+    }
+  } catch (err) {
+      logger.error(err);
+  }
+}
+
+
+
 // Simple method that returns a random emoji from list
 export function getRandomEmoji() {
   const emojiList = ['😭','😄','😌','🤓','😎','😤','🤖','😶‍🌫️','🌏','📸','💿','👋','🌊','✨'];

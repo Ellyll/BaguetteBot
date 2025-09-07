@@ -90,6 +90,27 @@ export async function GetUsersFromLogins(accessToken, userLogins) {
   }
 }
 
+export async function GetUserFromLogin(accessToken, login) {
+  const params = new URLSearchParams();
+  params.append('login', login);
+  const endpoint = `users?${params}`;
+
+  try {
+    let response = await TwitchRequest(endpoint, accessToken, { method: 'GET' });
+    if (response.ok) {
+      let users = await response.json();
+      if (users?.data && users.data.length > 0)
+        return users.data[0];
+    } else {
+      logger.debug('Unable to get user from login: %s', response);
+    }
+  } catch (err) {
+    logger.error(err);
+  }
+  return undefined;
+}
+
+
 export async function GetUsersFromIds(accessToken, userIds) {
   const params = new URLSearchParams();
   userIds.forEach(id => params.append('id', id));
