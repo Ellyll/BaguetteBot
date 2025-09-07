@@ -10,10 +10,10 @@ import {
   TwitchRequest
 } from './twitch-utils.js';
 import { GetMyGuilds, GetGuildChannels } from './utils.js';
-
 import { createUser, getAllUsers, getUserByTwitchId, getUserByTwitchLogin, updateUser, deleteUser, initialiseDatabase } from './user-storage.js';
 import Table from 'cli-table3';
 import { Command } from 'commander';
+import readline from 'readline';
 
 const program = new Command();
 
@@ -235,6 +235,43 @@ program
 
     updateUser(user.uid, user.twitch_login, user.twitch_name, user.twitch_id, user.stream_online_message, user.discord_channel_id, true);
     console.log(`User ${searchLogin} has been enabled.`);
+  });
+
+
+program
+  .command('delete <login>')
+  .description('Delete a user')
+  .option('-y, --yes', 'don\'t ask for confirmation')
+  .action((login, options) => {
+    const searchLogin = login.startsWith('@') ? login.substring(1) : login;
+
+    // Check user exists
+    const user = getUserByTwitchLogin(searchLogin);
+    if (user === undefined) {
+      console.error(`User ${searchLogin} does not exist`);
+      process.exit(1);
+    }
+
+    // Ask for confirmation if -y or --yes is not given
+    if (!options.yes) {
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+      });
+      rl.question(`Are you sure you want to delete user ${searchLogin}? (yes/no) `, (answer) => {
+        if (answer.toLowerCase() === 'yes' || answer.toLowerCase() === 'y') {
+          deleteUser(user.uid);
+          console.log(`User ${searchLogin} has been deleted.`);
+        } else {
+          console.log('User deletion canceled.');
+        }
+        rl.close();
+      });
+    } else {
+      // Proceed with deletion if -y or --yes is given
+      deleteUser(user.uid);
+      console.log(`User ${searchLogin} has been deleted.`);
+    }
   });
 
 
