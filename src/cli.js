@@ -35,7 +35,7 @@ program
     // Check user doesn't already exist
     if (getUserByTwitchLogin(searchLogin) !== undefined) {
       console.error(`User ${searchLogin} already exists`);
-      return 1;
+      process.exit(1);
     }
 
     // Try get user from twitch
@@ -44,7 +44,7 @@ program
     twitchUser = await GetUserFromLogin(twitchAccessToken, searchLogin);
     if (twitchUser === undefined) {
       console.error(`User ${searchLogin} not found on Twitch`);
-      return 1;
+      process.exit(1);
     }
 
     // Message needs to be null if it's not supplied
@@ -64,7 +64,7 @@ program
       const channel = channels.find(channel => channel.id === searchChannel || channel.name === searchChannel);
       if (channel === undefined) {
         console.error(`Channel ${searchChannel} not found on Discord`);
-        return 1;
+        process.exit(1);
       }
       channelId = channel.id;
       channelName = channel.name;
@@ -122,7 +122,81 @@ program
   .action((id, name) => {
     console.log(`User ${id} updated to ${name}.`);
   });
+*/
+program
+  .command('edit')
+  .description('Edit an existing user')
+  .argument('<login>', 'Twitch login of user to edit')
+  .option('-m, --message <message>', 'custom stream online message')
+  .option('-c, --channel <message>', 'custom discord channel name or ID')
+  .action(async (login, options) => {
+    if (options.message === undefined && options.channel === undefined) {
+      console.error('--message or --channel must be given');
+      process.exit(1);
+    }
 
+    const searchLogin = login.startsWith('@') ? login.substring(1) : login;
+
+    // Check user exists
+    const user = getUserByTwitchLogin(searchLogin);
+    if (user === undefined) {
+      console.error(`User ${searchLogin} does not exist`);
+      process.exit(1);
+    }
+
+    // Try get user from twitch
+    let twitchAccessToken = await GetAccessToken();
+    let twitchUser = undefined;
+    twitchUser = await GetUserFromLogin(twitchAccessToken, searchLogin);
+    if (twitchUser === undefined) {
+      console.error(`User ${searchLogin} not found on Twitch`);
+      process.exit(1);
+    }
+
+    // Message needs to be same if it's not supplied, if it's an empty string we set it to null to clear it
+    const message = options.message === undefined ? user.stream_online_message : (options.message === '' ? null : options.message);
+
+    // if channel not specified, get current channel if specified in db, otherwise we set channelId to null
+    // if channel specified, try to get the channel, if successfull set channelId and channelName, otherwise error
+    let channelId = null;
+    let channelName = null;
+    if ((!user.discord_channel_id && options.channel === undefined) || options.channel === '' ) {
+      channelId = null;
+      channelName = null;
+    } else {
+      let searchChannel;
+      if (user.discord_channel_id && !options.channel)
+        searchChannel = user.discord_channel_id;
+      else
+        searchChannel = options.channel.startsWith('#') ? options.channel.substring(1) : options.channel;
+      
+      const guilds = await GetMyGuilds();
+      // Assume first guild is the one we want - will need to change stuff if we need to support more than one discord
+      const guildId = guilds[0].id;
+      const channels = await GetGuildChannels(guildId);
+
+      const channel = channels.find(channel => channel.id === searchChannel || channel.name === searchChannel);
+      if (channel === undefined) {
+        console.error(`Channel ${searchChannel} not found on Discord`);
+        process.exit(1);
+      }
+      channelId = channel.id;
+      channelName = channel.name;
+    }
+
+    updateUser(user.uid, twitchUser.login, twitchUser.display_name, twitchUser.id, message, channelId, user.active);
+    console.log(`User ${searchLogin} updated.`);
+    const updatedUser = getUserByTwitchLogin(twitchUser.login);
+
+    displayUser(updatedUser);
+  });
+
+
+
+
+  
+
+/*
 program
   .command('disable <id>')
   .description('Disable a user')
@@ -142,6 +216,13 @@ program
   .description('Delete a user')
   .action((id) => {
     console.log(`User ${id} deleted.`);
+  });
+
+program
+  .command('update')
+  .description('Update users from Twitch')
+  .action(() => {
+    console.log(`Users updated from Twitch.`);
   });
 */
 
