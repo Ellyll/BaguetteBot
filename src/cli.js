@@ -14,6 +14,7 @@ import { createUser, getAllUsers, getUserByTwitchId, getUserByTwitchLogin, updat
 import Table from 'cli-table3';
 import { Command } from 'commander';
 import readline from 'readline';
+import * as userService from './user-service.js';
 
 const program = new Command();
 
@@ -115,14 +116,6 @@ program
   });
 
 
-/*
-program
-  .command('edit <id> <name>')
-  .description('Edit an existing user')
-  .action((id, name) => {
-    console.log(`User ${id} updated to ${name}.`);
-  });
-*/
 program
   .command('edit')
   .description('Edit an existing user')
@@ -275,21 +268,14 @@ program
   });
 
 
-/*
-program
-  .command('delete <id>')
-  .description('Delete a user')
-  .action((id) => {
-    console.log(`User ${id} deleted.`);
-  });
-
 program
   .command('update-users')
   .description('Update users from Twitch')
-  .action(() => {
+  .action(async () => {
+    let twitchAccessToken = await GetAccessToken();
+    userService.UpdateUsersFromTwitch(twitchAccessToken);
     console.log(`Users updated from Twitch.`);
   });
-*/
 
 
 function displayUser(twitchUser) {
