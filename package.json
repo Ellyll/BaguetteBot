@@ -17,6 +17,8 @@
   "author": "Ellyll",
   "license": "MIT",
   "dependencies": {
+    "cli-table3": "^0.6.5",
+    "commander": "^14.0.0",
     "discord-interactions": "^4.0.0",
     "dotenv": "^16.0.3",
     "express": "^4.18.2",

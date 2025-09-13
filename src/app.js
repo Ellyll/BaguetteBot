@@ -20,6 +20,7 @@ import {
 const { createHmac, timingSafeEqual } = await import('node:crypto');
 const { readFileSync } = await import('fs');
 import { createUser, getAllUsers, getUserByTwitchId, updateUser, deleteUser, initialiseDatabase } from './user-storage.js';
+import * as userService from './user-service.js';
 import logger from './logger.js';
 
 // Create an express app
@@ -138,7 +139,7 @@ app.post('/twitch-callback', async (req, res) => {
             if (TWITCH_EVENT_TYPE_STREAM_ONLINE === notification.subscription.type) {
               // Update users from twitch (in case login/display name has changed)
               twitchAccessToken = await GetAccessToken();
-              await UpdateUsersFromTwitch(twitchAccessToken);
+              await userService.UpdateUsersFromTwitch(twitchAccessToken);
 
               // Get user from database
               const user = getUserByTwitchId(notification.event.broadcaster_user_id);
@@ -197,7 +198,7 @@ app.listen(PORT, async () => {
 
   twitchAccessToken = await GetAccessToken();
 
-  await UpdateUsersFromTwitch(twitchAccessToken);
+  await userService.UpdateUsersFromTwitch(twitchAccessToken);
 
   let subscriptionsResponse = await GetEventSubscriptions(twitchAccessToken);
   let subscriptions = subscriptionsResponse.data.filter(sub => sub.type === 'stream.online');
@@ -248,43 +249,3 @@ function verifyMessage(hmac, verifySignature) {
     return timingSafeEqual(Buffer.from(hmac), Buffer.from(verifySignature));
 }
 
-async function UpdateUsersFromTwitch(twitchAccessToken) {
-
-  try {
-    // Users from database
-    const users = getAllUsers();
-    const userIds = users.map(user => user.twitch_id);
-
-    // Users from Twitch
-    const twitchUsers = (await GetUsersFromIds(twitchAccessToken, userIds)).data;
-
-    // Get an array of db users to update
-    const usersToUpdate = []
-    users.forEach(dbUser => {
-      const twitchUser = twitchUsers.find(tUser => tUser.id === dbUser.twitch_id);
-      if (twitchUser === undefined) {
-        logger.info(`User not found in Twitch: uid: ${dbUser.uid}, twitch_id: ${dbUser.twitch_id}, twitch_login: ${dbUser.twitch_login}`);
-        // set user active to false
-        dbUser.active = false;
-        usersToUpdate.push(dbUser);
-      } else if (dbUser.twitch_login !== twitchUser.login ||
-            dbUser.twitch_name !== twitchUser.display_name ||
-            dbUser.active === 0) { // user was inactive (vanished from Twitch) but came back
-        logger.info(`User details different from Twitch: uid: ${dbUser.uid}, twitch_id: ${dbUser.twitch_id}, twitch_login: ${dbUser.twitch_login}, twitch_name: ${dbUser.twitch_name}, active: ${dbUser.active}`);
-        logger.info(`User details different from Twitch: login: ${twitchUser.login}, display_name: ${twitchUser.display_name}`);
-        dbUser.twitch_login = twitchUser.login;
-        dbUser.twitch_name = twitchUser.display_name;
-        dbUser.active = true;
-        usersToUpdate.push(dbUser);
-    }
-    });
-
-    usersToUpdate.forEach(user => {
-      logger.info(`Updating user uid: ${user.uid}, twitch_id: ${user.twitch_id}, twitch_login: ${user.twitch_login}`);
-      updateUser(user.uid, user.twitch_login, user.twitch_name, user.twitch_id, user.stream_online_message, user.discord_channel_id, user.active);
-    });
-  }
-  catch (error) {
-    logger.error('Error updating users from Twitch: %s', error);
-  }
-}
