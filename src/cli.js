@@ -1,14 +1,4 @@
-
-import {
-  GetAccessToken,
-  GetEventSubscriptions,
-  GetUsersFromIds,
-  GetUsersFromLogins,
-  GetUserFromLogin,
-  CreateEventSubscription,
-  DeleteEventSubscription,
-  TwitchRequest
-} from './twitch-utils.js';
+import * as twitch from './twitch-utils.js';
 import { GetMyGuilds, GetGuildChannels } from './discord-utils.js';
 import { createUser, getAllUsers, getUserByTwitchId, getUserByTwitchLogin, updateUser, deleteUser, initialiseDatabase } from './user-storage.js';
 import Table from 'cli-table3';
@@ -42,7 +32,7 @@ program
     // Try get user from twitch
     let twitchAccessToken = await GetAccessToken();
     let twitchUser = undefined;
-    twitchUser = await GetUserFromLogin(twitchAccessToken, searchLogin);
+    twitchUser = await twitch.GetUserFromLogin(twitchAccessToken, searchLogin);
     if (twitchUser === undefined) {
       console.error(`User ${searchLogin} not found on Twitch`);
       process.exit(1);
@@ -75,7 +65,7 @@ program
     console.log(`User ${searchLogin} added.`);
     const user = getUserByTwitchLogin(twitchUser.login);
 
-    await CreateEventSubscription(twitchAccessToken, 'stream.online', { broadcaster_user_id: twitchUser.id } );
+    await twitch.CreateEventSubscription(twitchAccessToken, 'stream.online', { broadcaster_user_id: twitchUser.id } );
     console.log(`Created sub for user_id: ${twitchUser.id}`);
 
     displayUser(user);
@@ -138,9 +128,9 @@ program
     }
 
     // Try get user from twitch
-    let twitchAccessToken = await GetAccessToken();
+    let twitchAccessToken = await twitch.GetAccessToken();
     let twitchUser = undefined;
-    twitchUser = await GetUserFromLogin(twitchAccessToken, searchLogin);
+    twitchUser = await twitch.GetUserFromLogin(twitchAccessToken, searchLogin);
     if (twitchUser === undefined) {
       console.error(`User ${searchLogin} not found on Twitch`);
       process.exit(1);
@@ -263,6 +253,7 @@ program
     } else {
       // Proceed with deletion if -y or --yes is given
       deleteUser(user.uid);
+      // TODO: delete any event subscriptions
       console.log(`User ${searchLogin} has been deleted.`);
     }
   });
@@ -272,7 +263,7 @@ program
   .command('update-users')
   .description('Update users from Twitch')
   .action(async () => {
-    let twitchAccessToken = await GetAccessToken();
+    let twitchAccessToken = await twitch.GetAccessToken();
     userService.UpdateUsersFromTwitch(twitchAccessToken);
     console.log(`Users updated from Twitch.`);
   });

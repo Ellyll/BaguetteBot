@@ -1,5 +1,5 @@
 import { getAllUsers, updateUser } from './user-storage.js';
-import { GetUsersFromIds } from './twitch-utils.js';
+import * as twitch from './twitch-utils.js';
 import logger from './logger.js';
 
 
@@ -11,7 +11,7 @@ export async function UpdateUsersFromTwitch(twitchAccessToken) {
     const userIds = users.map(user => user.twitch_id);
 
     // Users from Twitch
-    const twitchUsers = (await GetUsersFromIds(twitchAccessToken, userIds)).data;
+    const twitchUsers = (await twitch.GetUsersFromIds(twitchAccessToken, userIds)).data;
 
     // Get an array of db users to update
     const usersToUpdate = []

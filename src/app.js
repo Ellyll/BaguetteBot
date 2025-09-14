@@ -8,16 +8,7 @@ import {
   verifyKeyMiddleware,
 } from 'discord-interactions';
 import { getRandomEmoji, DiscordRequest } from './discord-utils.js';
-import {
-  GetAccessToken,
-  GetEventSubscriptions,
-  GetUsersFromIds,
-  GetUsersFromLogins,
-  GetLiveStreamsByUserId,
-  CreateEventSubscription,
-  DeleteEventSubscription,
-  TwitchRequest
-} from './twitch-utils.js';
+import * as twitch from './twitch-utils.js';
 const { createHmac, timingSafeEqual } = await import('node:crypto');
 const { readFileSync } = await import('fs');
 import { createUser, getAllUsers, getUserByTwitchId, updateUser, deleteUser, initialiseDatabase } from './user-storage.js';
@@ -139,14 +130,14 @@ app.post('/twitch-callback', async (req, res) => {
 
             if (TWITCH_EVENT_TYPE_STREAM_ONLINE === notification.subscription.type) {
               // Update users from twitch (in case login/display name has changed)
-              twitchAccessToken = await GetAccessToken();
+              twitchAccessToken = await twitch.GetAccessToken();
               await userService.UpdateUsersFromTwitch(twitchAccessToken);
 
               // Get user from database
               const user = getUserByTwitchId(notification.event.broadcaster_user_id);
 
               // Get user from Twitch
-              const twitchUser = (await GetUsersFromIds(twitchAccessToken, [ user.twitch_id ]));
+              const twitchUser = (await twitch.GetUsersFromIds(twitchAccessToken, [ user.twitch_id ]));
 
               // Post message to Discord
               // Send a message to the discord channel saying hello world
@@ -162,7 +153,7 @@ app.post('/twitch-callback', async (req, res) => {
                 message = user.stream_online_message.replaceAll('{user_name}', user_name).replaceAll('{user_login}', user_login).replaceAll('{url}', url);
               }
 
-              const streams = await GetLiveStreamsByUserId(twitchAccessToken, user.twitch_id);
+              const streams = await twitch.GetLiveStreamsByUserId(twitchAccessToken, user.twitch_id);
               // We'll just use the first stream if it exist
               const stream = streams.data.length >= 1 ? streams.data[0] : undefined;
 
@@ -242,11 +233,11 @@ app.listen(PORT, async () => {
   logger.info('Listening on port', PORT);
   initialiseDatabase();
 
-  twitchAccessToken = await GetAccessToken();
+  twitchAccessToken = await twitch.GetAccessToken();
 
   await userService.UpdateUsersFromTwitch(twitchAccessToken);
 
-  let subscriptionsResponse = await GetEventSubscriptions(twitchAccessToken);
+  let subscriptionsResponse = await twitch.GetEventSubscriptions(twitchAccessToken);
   let subscriptions = subscriptionsResponse.data.filter(sub => sub.type === 'stream.online');
   logger.debug(`subscriptionsResponse: ${subscriptionsResponse}`);
 
@@ -257,7 +248,7 @@ app.listen(PORT, async () => {
     subscriptions.filter(sub => sub.status !== 'enabled' || !userIds.some(uId => uId === sub.condition.broadcaster_user_id));
   logger.debug(`subsToDelete: ${subsToDelete}`);
   subsToDelete.forEach(async sub => {
-    await DeleteEventSubscription(twitchAccessToken, sub.id);
+    await twitch.DeleteEventSubscription(twitchAccessToken, sub.id);
   });
 
   // go through users - create sub where sub doesn't exist
@@ -265,7 +256,7 @@ app.listen(PORT, async () => {
     userIds.filter(uId => !subscriptions.some(sub => sub.status === 'enabled' && sub.condition.broadcaster_user_id === uId));
   logger.debug(`userIdsForSubsToCreate: ${userIdsForSubsToCreate}`);
   userIdsForSubsToCreate.forEach(async uId => {
-    await CreateEventSubscription(twitchAccessToken, 'stream.online', { broadcaster_user_id: uId } );
+    await twitch.CreateEventSubscription(twitchAccessToken, 'stream.online', { broadcaster_user_id: uId } );
     logger.info(`Created sub for user_id: ${uId}`);
   });
 });
