@@ -131,6 +131,30 @@ export async function GetUsersFromIds(accessToken, userIds) {
   }
 }
 
+
+export async function GetLiveStreamsByUserId(accessToken, userId) {
+  logger.info(`GetLiveStreamsByUserId called with userId=${userId}`);
+  const params = new URLSearchParams();
+  params.append('user_id', userId);
+  params.append('type', 'live');
+  params.append('first', 20); // Maximum number of items returned (per page - but we're not using pagination)
+  const endpoint = `streams?${params}`;
+
+  try {
+    let response = await TwitchRequest(endpoint, accessToken, { method: 'GET' });
+    if (response.ok) {
+      return await response.json();
+    } else {
+      logger.error('Unable to get streams by user_id: %s', response);
+      return null;
+    }
+  } catch (err) {
+    logger.error(err);
+    return null;
+  }
+}
+
+
 export async function CreateEventSubscription(accessToken, eventType, condition) {
   const endpoint = `eventsub/subscriptions`;
 

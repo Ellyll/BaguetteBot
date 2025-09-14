@@ -13,6 +13,7 @@ import {
   GetEventSubscriptions,
   GetUsersFromIds,
   GetUsersFromLogins,
+  GetLiveStreamsByUserId,
   CreateEventSubscription,
   DeleteEventSubscription,
   TwitchRequest
@@ -144,23 +145,68 @@ app.post('/twitch-callback', async (req, res) => {
               // Get user from database
               const user = getUserByTwitchId(notification.event.broadcaster_user_id);
 
+              // Get user from Twitch
+              const twitchUser = (await GetUsersFromIds(twitchAccessToken, [ user.twitch_id ]));
+
               // Post message to Discord
               // Send a message to the discord channel saying hello world
-              const user_name = notification.event.broadcaster_user_name;
-              const user_login = notification.event.broadcaster_user_login;
+              //const user_name = notification.event.broadcaster_user_name;
+              //const user_login = notification.event.broadcaster_user_login;
+              const user_name = user.twitch_name;
+              const user_login = user.twitch_login;
+
               const url = `https://twitch.tv/${user_login}`;
-              let message = `The wonderful ${user_name} has gone live, let's go see what they're up to! ${url}`;
+              let message = `The wonderful ${user_name} has gone live, let's go see what they're up to!`;
               // If we have a custom stream online message stored, use that instead of the default
               if (user.stream_online_message) {
                 message = user.stream_online_message.replaceAll('{user_name}', user_name).replaceAll('{user_login}', user_login).replaceAll('{url}', url);
               }
 
-              const channelId = user.discord_channel_id ?? process.env.CHANNEL_ID;
+              const streams = await GetLiveStreamsByUserId(twitchAccessToken, user.twitch_id);
+              // We'll just use the first stream if it exist
+              const stream = streams.data.length >= 1 ? streams.data[0] : undefined;
 
-              let response = await DiscordRequest(`channels/${channelId}/messages`, {
+              const channelId = user.discord_channel_id ?? process.env.CHANNEL_ID;
+              const components = [
+                {
+                  type: 1, // Action Row
+                  id: 1,
+                  components: [
+                    {
+                      type: 2, // Button
+                      id: 2,
+                      style: 5,
+                      label: "Watch on Twitch",
+                      url: `https://www.twitch.tv/${user_login}`
+                    }
+                  ]
+                }
+              ];
+
+              const embeds = [
+                {
+                  title: stream?.title ?? '', //stream?.title ?? message.length > 255 ? message.substring(0,255) : message,
+                  type: 'rich',
+                  description: stream?.game_name ?? '',
+                  timestamp: new Date().toISOString(),
+                  color: 0x9146FF,
+                  image: {
+                    url: stream?.thumbnail_url?.replace('{width}', '1152')?.replace('{height}', '648') ?? ''
+                  },
+                  author: {
+                    name: user_name,
+                    url: `https://www.twitch.tv/${user_login}`,
+                    icon_url: twitchUser.data[0].profile_image_url
+                  }
+                }
+              ];
+
+              const response = await DiscordRequest(`channels/${channelId}/messages`, {
                   method: 'POST',
                   body: {
-                      content: message
+                      content: message,
+                      components: components,
+                      embeds: embeds
                   }
                 });
             }
