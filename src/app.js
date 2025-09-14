@@ -182,7 +182,7 @@ app.post('/twitch-callback', async (req, res) => {
                   timestamp: new Date().toISOString(),
                   color: 0x9146FF,
                   image: {
-                    url: stream?.thumbnail_url?.replace('{width}', '1152')?.replace('{height}', '648') ?? ''
+                    url: stream?.thumbnail_url?.replace('{width}', '1152')?.replace('{height}', '648')?.concat(`?v=${Date.now()}`) ?? ''
                   },
                   author: {
                     name: user_name,
