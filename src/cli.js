@@ -1,6 +1,6 @@
 import * as twitch from './twitch-utils.js';
 import * as discord from './discord-utils.js';
-import { createUser, getAllUsers, getUserByTwitchId, getUserByTwitchLogin, updateUser, deleteUser, initialiseDatabase } from './user-storage.js';
+import * as userStorage from './user-storage.js';
 import Table from 'cli-table3';
 import { Command } from 'commander';
 import readline from 'readline';
@@ -24,7 +24,7 @@ program
     const searchLogin = login.startsWith('@') ? login.substring(1) : login;
 
     // Check user doesn't already exist
-    if (getUserByTwitchLogin(searchLogin) !== undefined) {
+    if (userStorage.getUserByTwitchLogin(searchLogin) !== undefined) {
       console.error(`User ${searchLogin} already exists`);
       process.exit(1);
     }
@@ -61,9 +61,9 @@ program
       channelName = channel.name;
     }
 
-    createUser(twitchUser.login, twitchUser.display_name, twitchUser.id, message, channelId, true);
+    userStorage.createUser(twitchUser.login, twitchUser.display_name, twitchUser.id, message, channelId, true);
     console.log(`User ${searchLogin} added.`);
-    const user = getUserByTwitchLogin(twitchUser.login);
+    const user = userStorage.getUserByTwitchLogin(twitchUser.login);
 
     await twitch.CreateEventSubscription(twitchAccessToken, 'stream.online', { broadcaster_user_id: twitchUser.id } );
     console.log(`Created sub for user_id: ${twitchUser.id}`);
@@ -77,7 +77,7 @@ program
   .description('List all users')
   .action(() => {
     console.log('Listing all users...');
-    const users = getAllUsers();
+    const users = userStorage.getAllUsers();
     const table = new Table({
       head: [ 'Login', 'Message', 'ChannelId' ]
     });
@@ -96,7 +96,7 @@ program
   .command('show <login>')
   .description('Show information about a user')
   .action((login) => {
-    const user = getUserByTwitchLogin(login);
+    const user = userStorage.getUserByTwitchLogin(login);
     if (user) {
       console.log(`Showing information about ${login}...`);
       displayUser(user);
@@ -121,7 +121,7 @@ program
     const searchLogin = login.startsWith('@') ? login.substring(1) : login;
 
     // Check user exists
-    const user = getUserByTwitchLogin(searchLogin);
+    const user = userStorage.getUserByTwitchLogin(searchLogin);
     if (user === undefined) {
       console.error(`User ${searchLogin} does not exist`);
       process.exit(1);
@@ -167,9 +167,9 @@ program
       channelName = channel.name;
     }
 
-    updateUser(user.uid, twitchUser.login, twitchUser.display_name, twitchUser.id, message, channelId, user.active);
+    userStorage.updateUser(user.uid, twitchUser.login, twitchUser.display_name, twitchUser.id, message, channelId, user.active);
     console.log(`User ${searchLogin} updated.`);
-    const updatedUser = getUserByTwitchLogin(twitchUser.login);
+    const updatedUser = userStorage.getUserByTwitchLogin(twitchUser.login);
 
     displayUser(updatedUser);
   });
@@ -182,7 +182,7 @@ program
     const searchLogin = login.startsWith('@') ? login.substring(1) : login;
 
     // Check user exists
-    const user = getUserByTwitchLogin(searchLogin);
+    const user = userStorage.getUserByTwitchLogin(searchLogin);
     if (user === undefined) {
       console.error(`User ${searchLogin} does not exist`);
       process.exit(1);
@@ -193,7 +193,7 @@ program
       return;
     }
 
-    updateUser(user.uid, user.twitch_login, user.twitch_name, user.twitch_id, user.stream_online_message, user.discord_channel_id, false);
+    userStorage.updateUser(user.uid, user.twitch_login, user.twitch_name, user.twitch_id, user.stream_online_message, user.discord_channel_id, false);
     console.log(`User ${searchLogin} has been disabled.`);
   });
 
@@ -205,7 +205,7 @@ program
     const searchLogin = login.startsWith('@') ? login.substring(1) : login;
 
     // Check user exists
-    const user = getUserByTwitchLogin(searchLogin);
+    const user = userStorage.getUserByTwitchLogin(searchLogin);
     if (user === undefined) {
       console.error(`User ${searchLogin} does not exist`);
       process.exit(1);
@@ -216,7 +216,7 @@ program
       return;
     }
 
-    updateUser(user.uid, user.twitch_login, user.twitch_name, user.twitch_id, user.stream_online_message, user.discord_channel_id, true);
+    userStorage.updateUser(user.uid, user.twitch_login, user.twitch_name, user.twitch_id, user.stream_online_message, user.discord_channel_id, true);
     console.log(`User ${searchLogin} has been enabled.`);
   });
 
@@ -229,7 +229,7 @@ program
     const searchLogin = login.startsWith('@') ? login.substring(1) : login;
 
     // Check user exists
-    const user = getUserByTwitchLogin(searchLogin);
+    const user = userStorage.getUserByTwitchLogin(searchLogin);
     if (user === undefined) {
       console.error(`User ${searchLogin} does not exist`);
       process.exit(1);
@@ -243,7 +243,7 @@ program
       });
       rl.question(`Are you sure you want to delete user ${searchLogin}? (yes/no) `, (answer) => {
         if (answer.toLowerCase() === 'yes' || answer.toLowerCase() === 'y') {
-          deleteUser(user.uid);
+          userStorage.deleteUser(user.uid);
           console.log(`User ${searchLogin} has been deleted.`);
         } else {
           console.log('User deletion canceled.');
@@ -252,7 +252,7 @@ program
       });
     } else {
       // Proceed with deletion if -y or --yes is given
-      deleteUser(user.uid);
+      userStorage.deleteUser(user.uid);
       // TODO: delete any event subscriptions
       console.log(`User ${searchLogin} has been deleted.`);
     }

@@ -1,4 +1,4 @@
-import { getAllUsers, updateUser } from './user-storage.js';
+import * as userStorage from './user-storage.js';
 import * as twitch from './twitch-utils.js';
 import logger from './logger.js';
 
@@ -7,7 +7,7 @@ export async function UpdateUsersFromTwitch(twitchAccessToken) {
 
   try {
     // Users from database
-    const users = getAllUsers();
+    const users = userStorage.getAllUsers();
     const userIds = users.map(user => user.twitch_id);
 
     // Users from Twitch
@@ -36,7 +36,7 @@ export async function UpdateUsersFromTwitch(twitchAccessToken) {
 
     usersToUpdate.forEach(user => {
       logger.info(`Updating user uid: ${user.uid}, twitch_id: ${user.twitch_id}, twitch_login: ${user.twitch_login}`);
-      updateUser(user.uid, user.twitch_login, user.twitch_name, user.twitch_id, user.stream_online_message, user.discord_channel_id, user.active);
+      userStorage.updateUser(user.uid, user.twitch_login, user.twitch_name, user.twitch_id, user.stream_online_message, user.discord_channel_id, user.active);
     });
   }
   catch (error) {

@@ -11,7 +11,7 @@ import * as discord from './discord-utils.js';
 import * as twitch from './twitch-utils.js';
 const { createHmac, timingSafeEqual } = await import('node:crypto');
 const { readFileSync } = await import('fs');
-import { createUser, getAllUsers, getUserByTwitchId, updateUser, deleteUser, initialiseDatabase } from './user-storage.js';
+import * as userStorage from './user-storage.js';
 import * as userService from './user-service.js';
 import logger from './logger.js';
 
@@ -134,7 +134,7 @@ app.post('/twitch-callback', async (req, res) => {
               await userService.UpdateUsersFromTwitch(twitchAccessToken);
 
               // Get user from database
-              const user = getUserByTwitchId(notification.event.broadcaster_user_id);
+              const user = userStorage.getUserByTwitchId(notification.event.broadcaster_user_id);
 
               // Get user from Twitch
               const twitchUser = (await twitch.GetUsersFromIds(twitchAccessToken, [ user.twitch_id ]));
@@ -231,7 +231,7 @@ app.get('/health', (_req, res) => {
 
 app.listen(PORT, async () => {
   logger.info('Listening on port', PORT);
-  initialiseDatabase();
+  userStorage.initialiseDatabase();
 
   twitchAccessToken = await twitch.GetAccessToken();
 
@@ -241,7 +241,7 @@ app.listen(PORT, async () => {
   let subscriptions = subscriptionsResponse.data.filter(sub => sub.type === 'stream.online');
   logger.debug(`subscriptionsResponse: ${subscriptionsResponse}`);
 
-  let userIds = getAllUsers().map(user => user.twitch_id);
+  let userIds = userStorage.getAllUsers().map(user => user.twitch_id);
  
   // go through subs - delete where user id isn't in list
   const subsToDelete =
