@@ -1,5 +1,5 @@
 import 'dotenv/config';
 
-import {InstallGlobalCommands, UninstallGlobalCommands} from './discord-utils.js';
+import * as discord from './discord-utils.js';
 
-UninstallGlobalCommands(process.env.APP_ID);
+discord.UninstallGlobalCommands(process.env.APP_ID);

@@ -7,7 +7,7 @@ import {
   MessageComponentTypes,
   verifyKeyMiddleware,
 } from 'discord-interactions';
-import { getRandomEmoji, DiscordRequest } from './discord-utils.js';
+import * as discord from './discord-utils.js';
 import * as twitch from './twitch-utils.js';
 const { createHmac, timingSafeEqual } = await import('node:crypto');
 const { readFileSync } = await import('fs');
@@ -79,7 +79,7 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
             {
               type: MessageComponentTypes.TEXT_DISPLAY,
               // Fetches a random emoji to send from a helper function
-              content: `Hello world! ${getRandomEmoji()}`
+              content: `Hello world! ${discord.getRandomEmoji()}`
             }
           ]
         },
@@ -96,7 +96,7 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
 
 app.get('/test-send-message', async (_req, res) => {
     // Send a message to the discord channel saying hello world
-    let response = await DiscordRequest(`channels/${process.env.CHANNEL_ID}/messages`, {
+    let response = await discord.DiscordRequest(`channels/${process.env.CHANNEL_ID}/messages`, {
         method: 'POST',
         body: {
             content: 'Hello world!'
@@ -192,7 +192,7 @@ app.post('/twitch-callback', async (req, res) => {
                 }
               ];
 
-              const response = await DiscordRequest(`channels/${channelId}/messages`, {
+              const response = await discord.DiscordRequest(`channels/${channelId}/messages`, {
                   method: 'POST',
                   body: {
                       content: message,

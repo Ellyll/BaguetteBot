@@ -1,5 +1,5 @@
 import * as twitch from './twitch-utils.js';
-import { GetMyGuilds, GetGuildChannels } from './discord-utils.js';
+import * as discord from './discord-utils.js';
 import { createUser, getAllUsers, getUserByTwitchId, getUserByTwitchLogin, updateUser, deleteUser, initialiseDatabase } from './user-storage.js';
 import Table from 'cli-table3';
 import { Command } from 'commander';
@@ -30,7 +30,7 @@ program
     }
 
     // Try get user from twitch
-    let twitchAccessToken = await GetAccessToken();
+    let twitchAccessToken = await twitch.GetAccessToken();
     let twitchUser = undefined;
     twitchUser = await twitch.GetUserFromLogin(twitchAccessToken, searchLogin);
     if (twitchUser === undefined) {
@@ -46,10 +46,10 @@ program
     let channelId = null;
     let channelName = null;
     if (options.channel !== undefined) {
-      const guilds = await GetMyGuilds();
+      const guilds = await discord.GetMyGuilds();
       // Assume first guild is the one we want - will need to change stuff if we need to support more than one discord
       const guildId = guilds[0].id;
-      const channels = await GetGuildChannels(guildId);
+      const channels = await discord.GetGuildChannels(guildId);
 
       const searchChannel = options.channel.startsWith('#') ? options.channel.substring(1) : options.channel;
       const channel = channels.find(channel => channel.id === searchChannel || channel.name === searchChannel);
@@ -153,10 +153,10 @@ program
       else
         searchChannel = options.channel.startsWith('#') ? options.channel.substring(1) : options.channel;
       
-      const guilds = await GetMyGuilds();
+      const guilds = await discord.GetMyGuilds();
       // Assume first guild is the one we want - will need to change stuff if we need to support more than one discord
       const guildId = guilds[0].id;
-      const channels = await GetGuildChannels(guildId);
+      const channels = await discord.GetGuildChannels(guildId);
 
       const channel = channels.find(channel => channel.id === searchChannel || channel.name === searchChannel);
       if (channel === undefined) {
