@@ -9,7 +9,7 @@ import {
   DeleteEventSubscription,
   TwitchRequest
 } from './twitch-utils.js';
-import { GetMyGuilds, GetGuildChannels } from './utils.js';
+import { GetMyGuilds, GetGuildChannels } from './discord-utils.js';
 import { createUser, getAllUsers, getUserByTwitchId, getUserByTwitchLogin, updateUser, deleteUser, initialiseDatabase } from './user-storage.js';
 import Table from 'cli-table3';
 import { Command } from 'commander';
