@@ -140,18 +140,39 @@ export async function GetLiveStreamsByUserId(accessToken, userId) {
   params.append('first', 20); // Maximum number of items returned (per page - but we're not using pagination)
   const endpoint = `streams?${params}`;
 
-  try {
-    let response = await TwitchRequest(endpoint, accessToken, { method: 'GET' });
-    if (response.ok) {
-      return await response.json();
-    } else {
-      logger.error('Unable to get streams by user_id: %s', response);
-      return null;
+  const maxRetries = 3
+  let attempt = 0
+  let delay = 1000
+
+  while (attempt < maxRetries)
+  {
+    try {
+      attempt++;
+      let response = await TwitchRequest(endpoint, accessToken, { method: 'GET' });
+      if (response.ok) {
+        return await response.json();
+      } else {
+        if (attempt < maxRetries) {
+          logger.error(`GetLiveStreamsByUserId() request failed for user_id: ${userId}, attempt=${attempt}, retrying in ${delay}, response was: ${response}`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          // Exponential backoff: quadruple the delay
+          delay *= 4;
+        } else {
+          logger.error(`GetLiveStreamsByUserId() request failed too many times for user_id: ${userId}, attempt=${attempt}, response was: ${response}`);
+        }
+      }
+    } catch (err) {
+      if (attempt < maxRetries) {
+        logger.error(`GetLiveStreamsByUserId() request failed for user_id: ${userId}, attempt=${attempt}, retrying in ${delay}, error was: ${err}`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        // Exponential backoff: quadruple the delay
+        delay *= 4;
+      } else {
+        logger.error(`GetLiveStreamsByUserId() request failed too many times for user_id: ${userId}, attempt=${attempt}, error was: ${err}`);
+      }
     }
-  } catch (err) {
-    logger.error(err);
-    return null;
   }
+  return null;
 }
 
 
