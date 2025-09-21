@@ -155,7 +155,7 @@ app.post('/twitch-callback', async (req, res) => {
 
               const streams = await twitch.GetLiveStreamsByUserId(twitchAccessToken, user.twitch_id);
               // We'll just use the first stream if it exist
-              const stream = streams.data.length >= 1 ? streams.data[0] : undefined;
+              const stream =  (streams?.data?.length ?? 0) >= 1 ? streams.data[0] : undefined;
 
               const channelId = user.discord_channel_id ?? process.env.CHANNEL_ID;
               const components = [
