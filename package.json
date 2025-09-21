@@ -12,7 +12,8 @@
     "start": "node src/app.js",
     "register": "node src/commands.js",
     "dev": "nodemon src/app.js",
-    "uninstall-commands": "node src/uninstall-commands.js"
+    "uninstall-commands": "node src/uninstall-commands.js",
+    "pretest": "eslint"
   },
   "author": "Ellyll",
   "license": "MIT",
@@ -25,6 +26,9 @@
     "winston": "^3.17.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.36.0",
+    "eslint": "^9.36.0",
+    "globals": "^16.4.0",
     "nodemon": "^3.0.0"
   }
 }
