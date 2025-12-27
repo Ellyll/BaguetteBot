@@ -269,6 +269,43 @@ program
   });
 
 
+program
+  .command('list-subs')
+  .description('List current Twitch event subs')
+  .action(async () => {
+    let twitchAccessToken = await twitch.GetAccessToken();
+    const subs = await twitch.GetEventSubscriptions(twitchAccessToken);
+    if (subs && subs.data) {
+      const userIds = [...new Set(subs.data.map(sub => sub.condition.broadcaster_user_id).filter(id => id))];
+      let userMap = {};
+      if (userIds.length > 0) {
+        const users = await twitch.GetUsersFromIds(twitchAccessToken, userIds);
+        if (users && users.data) {
+          users.data.forEach(user => {
+            userMap[user.id] = user.login;
+          });
+        }
+      }
+
+      const table = new Table({
+        head: ['ID', 'Status', 'Type', 'Broadcaster ID', 'Login', 'Created At']
+      });
+      const subsTable = subs.data.map(sub => ([
+        sub.id,
+        sub.status,
+        sub.type,
+        sub.condition.broadcaster_user_id || 'N/A',
+        userMap[sub.condition.broadcaster_user_id] || 'N/A',
+        sub.created_at
+      ]));
+      table.push(...subsTable);
+      console.log(table.toString());
+    } else {
+      console.log('No subscriptions found or error fetching them.');
+    }
+  });
+
+
 function displayUser(twitchUser) {
   const table = new Table();
   table.push(
