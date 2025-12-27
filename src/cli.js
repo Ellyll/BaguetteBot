@@ -306,6 +306,56 @@ program
   });
 
 
+program
+  .command('remove-duplicate-subs')
+  .description('Remove duplicate Twitch event subs, keeping the earliest')
+  .action(async () => {
+    let twitchAccessToken = await twitch.GetAccessToken();
+    const subs = await twitch.GetEventSubscriptions(twitchAccessToken);
+    if (!subs || !subs.data) {
+      console.log('No subscriptions found or error fetching them.');
+      return;
+    }
+
+    const groups = {};
+    subs.data.forEach(sub => {
+      const userId = sub.condition.broadcaster_user_id;
+      const type = sub.type;
+      if (!userId) return;
+
+      const key = `${userId}:${type}`;
+      if (!groups[key]) {
+        groups[key] = [];
+      }
+      groups[key].push(sub);
+    });
+
+    for (const key in groups) {
+      const group = groups[key];
+      if (group.length > 1) {
+        // Sort by created_at, oldest first
+        group.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+        const oldest = group[0];
+        const duplicates = group.slice(1);
+
+        console.log(`Found ${group.length} subscriptions for ${key}. Keeping ${oldest.id} (${oldest.created_at}).`);
+
+        for (const sub of duplicates) {
+          console.log(`Deleting duplicate subscription ${sub.id} (${sub.created_at})...`);
+          const success = await twitch.DeleteEventSubscription(twitchAccessToken, sub.id);
+          if (success) {
+            console.log(`Successfully deleted ${sub.id}.`);
+          } else {
+            console.error(`Failed to delete ${sub.id}.`);
+          }
+        }
+      }
+    }
+    console.log('Finished removing duplicate subscriptions.');
+  });
+
+
 function displayUser(twitchUser) {
   const table = new Table();
   table.push(
