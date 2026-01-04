@@ -22,6 +22,9 @@ const PORT = process.env.PORT || 3000;
 // To keep track of our active games
 const activeGames = {};
 
+// To keep track of processed Twitch message IDs to avoid duplicates
+const processedTwitchMessages = new Set();
+
 // Twitch: Notification request headers
 const TWITCH_MESSAGE_ID = 'Twitch-Eventsub-Message-Id'.toLowerCase();
 const TWITCH_MESSAGE_TIMESTAMP = 'Twitch-Eventsub-Message-Timestamp'.toLowerCase();
@@ -113,12 +116,24 @@ app.get('/test-send-message', async (_req, res) => {
 
 app.post('/twitch-callback', async (req, res) => {
     logger.info('Callback received');
+    const messageId = req.headers[TWITCH_MESSAGE_ID];
+
+    if (processedTwitchMessages.has(messageId)) {
+        logger.debug(`Duplicate message received: ${messageId}. Skipping.`);
+        return res.sendStatus(204);
+    }
+
     let secret = getSecret();
     let message = getHmacMessage(req);
     let hmac = HMAC_PREFIX + getHmac(secret, message);  // Signature to compare
 
     if (true === verifyMessage(hmac, req.headers[TWITCH_MESSAGE_SIGNATURE])) {
         logger.debug("signatures match");
+
+        // Add to processed messages to avoid handling duplicates
+        processedTwitchMessages.add(messageId);
+        // Remove after 10 minutes to keep the Set small
+        setTimeout(() => processedTwitchMessages.delete(messageId), 10 * 60 * 1000);
 
         // Get JSON object from body, so you can process the message.
         let notification = JSON.parse(req.body);
